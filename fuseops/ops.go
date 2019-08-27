@@ -23,6 +23,12 @@ import (
 // File system
 ////////////////////////////////////////////////////////////////////////
 
+// OpMetadata contains metadata about the file system operation.
+type OpMetadata struct {
+	// PID of the process that is invoking the operation.
+	Pid uint32
+}
+
 // Return statistics about the file system's capacity and available resources.
 //
 // Called by statfs(2) and friends:
@@ -279,6 +285,9 @@ type CreateFileOp struct {
 	// The name of the child to create, and the mode with which to create it.
 	Name string
 	Mode os.FileMode
+
+	// Metadata
+	Metadata OpMetadata
 
 	// Set by the file system: information about the inode that was created.
 	//
@@ -560,6 +569,9 @@ type OpenFileOp struct {
 	// The ID of the inode to be opened.
 	Inode InodeID
 
+	// Metadata
+	Metadata OpMetadata
+
 	// An opaque ID that will be echoed in follow-up calls for this file using
 	// the same struct file in the kernel. In practice this usually means
 	// follow-up calls using the file descriptor returned by open(2).
@@ -652,6 +664,9 @@ type WriteFileOp struct {
 	// by CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
 	Handle HandleID
+
+	// Metadata
+	Metadata OpMetadata
 
 	// The offset at which to write the data below.
 	//
@@ -758,6 +773,9 @@ type FlushFileOp struct {
 	// The file and handle being flushed.
 	Inode  InodeID
 	Handle HandleID
+
+	// Metadata
+	Metadata OpMetadata
 }
 
 // Release a previously-minted file handle. The kernel calls this when there
@@ -773,6 +791,9 @@ type ReleaseFileHandleOp struct {
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
+
+	// Metadata
+	Metadata OpMetadata
 }
 
 ////////////////////////////////////////////////////////////////////////
