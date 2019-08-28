@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"syscall"
 	"time"
 
@@ -28,10 +27,6 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
 )
-
-// Writes to file names with this prefix are locked to the
-// process that created the file.
-const pidTestFilePrefix = "pid_test_"
 
 type memFS struct {
 	fuseutil.NotImplementedFileSystem
@@ -316,7 +311,7 @@ func (fs *memFS) MkNode(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode, nil)
+	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode)
 	return
 }
 
@@ -324,8 +319,7 @@ func (fs *memFS) MkNode(
 func (fs *memFS) createFile(
 	parentID fuseops.InodeID,
 	name string,
-	mode os.FileMode,
-	expectedWriterPid *uint32) (entry fuseops.ChildInodeEntry, err error) {
+	mode os.FileMode) (entry fuseops.ChildInodeEntry, err error) {
 	// Grab the parent, which we will update shortly.
 	parent := fs.getInodeOrDie(parentID)
 
@@ -352,9 +346,6 @@ func (fs *memFS) createFile(
 
 	// Allocate a child.
 	childID, child := fs.allocateInode(childAttrs)
-	if expectedWriterPid != nil {
-		child.xattrs["expectedWriterPid"] = []byte(fmt.Sprint(*expectedWriterPid))
-	}
 
 	// Add an entry in the parent.
 	parent.AddChild(childID, name, fuseutil.DT_File)
@@ -374,16 +365,14 @@ func (fs *memFS) createFile(
 func (fs *memFS) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
+	if op.Metadata.Pid == 0 {
+		// CreateFileOp should have a valid pid in metadata.
+		err = fuse.EINVAL
+	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// If the file name is prefixed by `pidTestFilePrefix`, then set
-	// the `expectedWriterPid` prefix.
-	var expectedWriterPid *uint32
-	if strings.HasPrefix(op.Name, pidTestFilePrefix) {
-		expectedWriterPid = &op.Metadata.Pid
-	}
-	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode, expectedWriterPid)
+	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode)
 	return
 }
 
@@ -619,6 +608,11 @@ func (fs *memFS) ReadDir(
 func (fs *memFS) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
+	if op.Metadata.Pid == 0 {
+		// OpenFileOp should have a valid pid in metadata.
+		err = fuse.EINVAL
+	}
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -662,16 +656,20 @@ func (fs *memFS) WriteFile(
 
 	// Find the inode in question.
 	inode := fs.getInodeOrDie(op.Inode)
-	// If the node has `expectedWriterPid` in xattrs, then verify
-	// that the write is coming from the correct process.
-	expectedPidBytes, ok := inode.xattrs["expectedWriterPid"]
-	if ok && fmt.Sprint(op.Metadata.Pid) != string(expectedPidBytes) {
-		return fuse.EINVAL
-	}
 
 	// Serve the request.
 	_, err = inode.WriteAt(op.Data, op.Offset)
 
+	return
+}
+
+func (fs *memFS) FlushFile(
+	ctx context.Context,
+	op *fuseops.FlushFileOp) (err error) {
+	if op.Metadata.Pid == 0 {
+		// FlushFileOp should have a valid pid in metadata.
+		err = fuse.EINVAL
+	}
 	return
 }
 

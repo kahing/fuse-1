@@ -327,8 +327,7 @@ func convertInMessage(
 		}
 
 		o = &fuseops.ReleaseFileHandleOp{
-			Handle:   fuseops.HandleID(in.Fh),
-			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
+			Handle: fuseops.HandleID(in.Fh),
 		}
 
 	case fusekernel.OpReleasedir:
@@ -357,11 +356,10 @@ func convertInMessage(
 		}
 
 		o = &fuseops.WriteFileOp{
-			Inode:    fuseops.InodeID(inMsg.Header().Nodeid),
-			Handle:   fuseops.HandleID(in.Fh),
-			Data:     buf,
-			Offset:   int64(in.Offset),
-			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
+			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
+			Data:   buf,
+			Offset: int64(in.Offset),
 		}
 
 	case fusekernel.OpFsync:
