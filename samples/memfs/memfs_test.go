@@ -16,9 +16,11 @@ package memfs_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"os/user"
 	"path"
 	"reflect"
@@ -694,6 +696,27 @@ func (t *MemFSTest) WriteOverlapsEndOfFile() {
 	contents, err := ioutil.ReadAll(f)
 	AssertEq(nil, err)
 	ExpectEq("\x00\x00taco", string(contents))
+}
+
+func (t *MemFSTest) TestPid() {
+	// Touch the test file.
+	// Writes to files whose names start with "pid_test_" are locked to the
+	// process that created the file. Touching the file via exec.Command results
+	// in the test not being able to write to the file.
+	filename := path.Join(t.Dir, "pid_test_file")
+	fmt.Println(filename)
+	touchCmd := exec.Command("touch", filename)
+	_, touchErr := touchCmd.Output()
+	AssertEq(nil, touchErr)
+
+	// Open the test file for appending.
+	f, err := os.OpenFile(filename, os.O_APPEND, 0600)
+	t.ToClose = append(t.ToClose, f)
+
+	AssertEq(nil, err)
+	// Write should fail.
+	_, err = f.Write([]byte("something"))
+	AssertNe(nil, err)
 }
 
 func (t *MemFSTest) WriteStartsAtEndOfFile() {
