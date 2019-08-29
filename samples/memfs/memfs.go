@@ -367,7 +367,7 @@ func (fs *memFS) CreateFile(
 	op *fuseops.CreateFileOp) (err error) {
 	if op.Metadata.Pid == 0 {
 		// CreateFileOp should have a valid pid in metadata.
-		err = fuse.EINVAL
+		return fuse.EINVAL
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -610,7 +610,7 @@ func (fs *memFS) OpenFile(
 	op *fuseops.OpenFileOp) (err error) {
 	if op.Metadata.Pid == 0 {
 		// OpenFileOp should have a valid pid in metadata.
-		err = fuse.EINVAL
+		return fuse.EINVAL
 	}
 
 	fs.mu.Lock()
@@ -668,7 +668,7 @@ func (fs *memFS) FlushFile(
 	op *fuseops.FlushFileOp) (err error) {
 	if op.Metadata.Pid == 0 {
 		// FlushFileOp should have a valid pid in metadata.
-		err = fuse.EINVAL
+		return fuse.EINVAL
 	}
 	return
 }
